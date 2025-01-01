@@ -26,13 +26,19 @@ int main(void) {
   Matrix *W3 = new_matrix_from_file("../datasets/W3.csv", 100, 10);
 
   // b1
-  Vector *b1 = new_vector_from_file("../datasets/b1.csv", 50);
+  Matrix *b1_ = new_matrix_from_file("../datasets/b1.csv", 50, 1);
+  Matrix *b1 = new_matrix(1, 50);
+  transpose_matrix(b1, b1_);
 
   // b2
-  Vector *b2 = new_vector_from_file("../datasets/b2.csv", 100);
+  Matrix *b2_ = new_matrix_from_file("../datasets/b2.csv", 100, 1);
+  Matrix *b2 = new_matrix(1, 100);
+  transpose_matrix(b2, b2_);
 
   // b3
-  Vector *b3 = new_vector_from_file("../datasets/b3.csv", 10);
+  Matrix *b3_ = new_matrix_from_file("../datasets/b3.csv", 10, 1);
+  Matrix *b3 = new_matrix(1, 10);
+  transpose_matrix(b3, b3_);
 
   // Forward pass
   Matrix *t1 = new_matrix(ROWS, 50);
