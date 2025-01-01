@@ -3,8 +3,9 @@ project(NeuralNetwork C)
 
 set(CMAKE_C_STANDARD 11)
 
-add_executable(NeuralNetwork main.c
-        matrix.c
-        matrix.h
-        mnist.c
-        mnist.h)
+add_executable(NeuralNetwork
+        ./src/main.c
+        ./src/matrix.c
+        ./src/matrix.h
+        ./src/mnist.c
+        ./src/mnist.h)
