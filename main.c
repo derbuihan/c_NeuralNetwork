@@ -6,15 +6,19 @@
 int main(void) {
 
   double data[ROWS][COLS];
-  int labels[ROWS];
+  double labels[ROWS];
   load_csv("../datasets/mnist_test.csv", data, labels);
 
-  Matrix *X = matrix_create(ROWS, COLS);
-  init_matrix_from_array(X, data);
+  Matrix *X = new_matrix(ROWS, COLS);
+  init_matrix_from_array(X, data, ROWS, COLS);
 
-  Matrix *y = matrix_create(ROWS, 1);
-  init_matrix_from_array(y, labels);
+  Vector *y = new_vector(ROWS);
+  init_vector_from_array(y, labels, ROWS);
 
   printf("Hello, World!\n");
+
+  // print_matrix(X);
+  // print_vector(y);
+
   return 0;
 }

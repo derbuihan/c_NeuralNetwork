@@ -12,12 +12,17 @@ typedef struct Matrix {
   int cols;
 } Matrix;
 
-Vector *vector_create(int size);
-Matrix *matrix_create(int rows, int cols);
+Vector *new_vector(int size);
+Matrix *new_matrix(int rows, int cols);
+
 void free_vector(Vector *v);
 void free_matrix(Matrix *m);
 
-void init_vector_from_array(Vector *v, const double *data);
-void init_matrix_from_array(Matrix *m, const double **data);
+void init_vector_from_array(Vector *v, const double *data, const int size);
+void init_matrix_from_array(Matrix *m, double *data, const int rows,
+                            const int cols);
+
+void print_vector(Vector *v);
+void print_matrix(Matrix *m);
 
 #endif // MATRIX_H

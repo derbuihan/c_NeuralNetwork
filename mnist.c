@@ -3,7 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void load_csv(const char *filename, double data[ROWS][COLS], int labels[ROWS]) {
+void load_csv(const char *filename, double data[ROWS][COLS],
+              double labels[ROWS]) {
 
   FILE *file = fopen(filename, "r");
   if (!file) {
@@ -18,7 +19,7 @@ void load_csv(const char *filename, double data[ROWS][COLS], int labels[ROWS]) {
     for (int j = 0; j < COLS; j++) {
       fscanf(file, "%lf,", &data[i][j]);
     }
-    fscanf(file, "%d", &labels[i]);
+    fscanf(file, "%lf", &labels[i]);
   }
 
   fclose(file);
