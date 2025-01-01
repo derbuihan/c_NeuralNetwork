@@ -14,23 +14,71 @@ int main(void) {
 
   Matrix *X = new_matrix(ROWS, COLS);
   init_matrix_from_array(X, data, ROWS, COLS);
-  // free(data);
-  printf("%lf\n", sum_elements_matrix(X));
-  // print_matrix(X);
-
-  Vector *y = new_vector(ROWS);
-  init_vector_from_array(y, labels, ROWS);
-  // free(labels);
-  printf("%lf\n", sum_elements_vector(y));
-  // print_vector(y);
+  free(data);
 
   // W1
-  double data1[COLS][50];
-  load_csv("../datasets/W1.csv", data1, COLS, 50);
-  Matrix *W1 = new_matrix(COLS, 50);
-  init_matrix_from_array(W1, data1, COLS, 50);
-  printf("%lf\n", sum_elements_matrix(W1));
-  // print_matrix(W1);
+  Matrix *W1 = new_matrix_from_file("../datasets/W1.csv", COLS, 50);
+
+  // W2
+  Matrix *W2 = new_matrix_from_file("../datasets/W2.csv", 50, 100);
+
+  // W3
+  Matrix *W3 = new_matrix_from_file("../datasets/W3.csv", 100, 10);
+
+  // b1
+  Vector *b1 = new_vector_from_file("../datasets/b1.csv", 50);
+
+  // b2
+  Vector *b2 = new_vector_from_file("../datasets/b2.csv", 100);
+
+  // b3
+  Vector *b3 = new_vector_from_file("../datasets/b3.csv", 10);
+
+  // Forward pass
+  Matrix *t1 = new_matrix(ROWS, 50);
+  matrix_multiply_matrix(t1, X, W1);
+
+  Matrix *a1 = new_matrix(ROWS, 50);
+  matrix_add_vector(a1, t1, b1);
+
+  Matrix *z1 = new_matrix(ROWS, 50);
+  sigmoid_matrix(z1, a1);
+
+  Matrix *t2 = new_matrix(ROWS, 100);
+  matrix_multiply_matrix(t2, z1, W2);
+
+  Matrix *a2 = new_matrix(ROWS, 100);
+  matrix_add_vector(a2, t2, b2);
+
+  Matrix *z2 = new_matrix(ROWS, 100);
+  sigmoid_matrix(z2, a2);
+
+  Matrix *t3 = new_matrix(ROWS, 10);
+  matrix_multiply_matrix(t3, z2, W3);
+
+  Matrix *a3 = new_matrix(ROWS, 10);
+  matrix_add_vector(a3, t3, b3);
+
+  Matrix *y = new_matrix(ROWS, 10);
+  softmax_matrix(y, a3);
+
+  int acc_coount = 0;
+  for (int i = 0; i < ROWS; i++) {
+    int max_idx = 0;
+    double max_value = 0;
+    for (int j = 0; j < 10; j++) {
+      if (y->elements[i * 10 + j] > max_value) {
+        max_value = y->elements[i * 10 + j];
+        max_idx = j;
+      }
+    }
+
+    if (abs(labels[i] - max_idx) < 0.001) {
+      acc_coount++;
+    }
+  }
+
+  printf("Accuracy: %f\n", (double)acc_coount / ROWS);
 
   return 0;
 }

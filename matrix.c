@@ -1,5 +1,7 @@
 #include "matrix.h"
 
+#include "mnist.h"
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,6 +21,24 @@ Matrix *new_matrix(int rows, int cols) {
   m->rows = rows;
   m->cols = cols;
 
+  return m;
+}
+
+Vector *new_vector_from_file(const char *filename, int size) {
+  double *data = malloc(size * sizeof(double));
+  load_csv(filename, data, size, 1);
+  Vector *v = new_vector(size);
+  init_vector_from_array(v, data, size);
+  free(data);
+  return v;
+}
+
+Matrix *new_matrix_from_file(const char *filename, int rows, int cols) {
+  double *data = malloc(rows * cols * sizeof(double));
+  load_csv(filename, data, rows, cols);
+  Matrix *m = new_matrix(rows, cols);
+  init_matrix_from_array(m, data, rows, cols);
+  free(data);
   return m;
 }
 
@@ -107,6 +127,62 @@ void matrix_multiply_matrix(Matrix *result, const Matrix *a, const Matrix *b) {
         sum += a->elements[i * a->cols + k] * b->elements[k * b->cols + j];
       }
       result->elements[i * result->cols + j] = sum;
+    }
+  }
+}
+
+void matrix_add_vector(Matrix *result, const Matrix *m, const Vector *v) {
+  if (result->rows != m->rows || result->cols != m->cols ||
+      v->size != m->cols) {
+    fprintf(stderr, "Error: size mismatch\n");
+    exit(1);
+  }
+
+  for (int i = 0; i < result->rows; i++) {
+    for (int j = 0; j < result->cols; j++) {
+      result->elements[i * result->cols + j] =
+          m->elements[i * m->cols + j] + v->elements[j];
+    }
+  }
+}
+
+void sigmoid_matrix(Matrix *result, const Matrix *m) {
+  if (result->rows != m->rows || result->cols != m->cols) {
+    fprintf(stderr, "Error: size mismatch\n");
+    exit(1);
+  }
+
+  for (int i = 0; i < result->rows; i++) {
+    for (int j = 0; j < result->cols; j++) {
+      result->elements[i * result->cols + j] =
+          1 / (1 + exp(-m->elements[i * m->cols + j]));
+    }
+  }
+}
+
+void softmax_matrix(Matrix *result, const Matrix *m) {
+  if (result->rows != m->rows || result->cols != m->cols) {
+    fprintf(stderr, "Error: size mismatch\n");
+    exit(1);
+  }
+
+  for (int i = 0; i < result->rows; i++) {
+    double max = m->elements[i * m->cols];
+    for (int j = 1; j < result->cols; j++) {
+      if (m->elements[i * m->cols + j] > max) {
+        max = m->elements[i * m->cols + j];
+      }
+    }
+
+    double sum = 0;
+    for (int j = 0; j < result->cols; j++) {
+      result->elements[i * result->cols + j] =
+          exp(m->elements[i * m->cols + j] - max);
+      sum += result->elements[i * result->cols + j];
+    }
+
+    for (int j = 0; j < result->cols; j++) {
+      result->elements[i * result->cols + j] /= sum;
     }
   }
 }
