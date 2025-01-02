@@ -10,4 +10,6 @@ add_executable(NeuralNetwork
         src/mnist.c
         src/mnist.h
         src/simple_network.c
-        src/simple_network.h)
+        src/simple_network.h
+        src/optimizer.c
+        src/optimizer.h)

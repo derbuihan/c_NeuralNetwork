@@ -1,7 +1,7 @@
 #include "matrix.h"
 #include "mnist.h"
+#include "optimizer.h"
 #include "simple_network.h"
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -105,6 +105,13 @@ int main(void) {
   // Initialize network
   Network *net = new_network();
 
+  Adam_Optimizer *optim_W1 = new_adam_optimizer(net->W1, net->grad_W1, 0.001);
+  Adam_Optimizer *optim_b1 = new_adam_optimizer(net->b1, net->grad_b1, 0.001);
+  Adam_Optimizer *optim_W2 = new_adam_optimizer(net->W2, net->grad_W2, 0.001);
+  Adam_Optimizer *optim_b2 = new_adam_optimizer(net->b2, net->grad_b2, 0.001);
+  Adam_Optimizer *optim_W3 = new_adam_optimizer(net->W3, net->grad_W3, 0.001);
+  Adam_Optimizer *optim_b3 = new_adam_optimizer(net->b3, net->grad_b3, 0.001);
+
   // Train network
   int epochs = 1000;
   for (int i = 1; i <= epochs; i++) {
@@ -121,14 +128,13 @@ int main(void) {
 
     // Backward pass
     net->backward(net, X_batch, y_true_batch);
-    double learning_rate = 0.0001;
 
-    update_weights(net->W1, net->grad_W1, learning_rate);
-    update_weights(net->W2, net->grad_W2, learning_rate);
-    update_weights(net->W3, net->grad_W3, learning_rate);
-    update_weights(net->b1, net->grad_b1, learning_rate);
-    update_weights(net->b2, net->grad_b2, learning_rate);
-    update_weights(net->b3, net->grad_b3, learning_rate);
+    optim_W1->update(optim_W1);
+    optim_b1->update(optim_b1);
+    optim_W2->update(optim_W2);
+    optim_b2->update(optim_b2);
+    optim_W3->update(optim_W3);
+    optim_b3->update(optim_b3);
   }
 
   return 0;
