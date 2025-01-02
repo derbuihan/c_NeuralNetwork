@@ -10,6 +10,7 @@ Matrix *new_matrix(int rows, int cols) {
   Matrix *m = malloc(sizeof(Matrix));
 
   m->elements = malloc(rows * cols * sizeof(double));
+  m->gradients = malloc(rows * cols * sizeof(double));
   m->rows = rows;
   m->cols = cols;
 
@@ -27,6 +28,7 @@ Matrix *new_matrix_from_file(const char *filename, int rows, int cols) {
 
 void free_matrix(Matrix *m) {
   free(m->elements);
+  free(m->gradients);
   free(m);
 }
 
@@ -59,6 +61,14 @@ void init_matrix_from_array(Matrix *m, double *data, const int rows,
   }
 }
 
+void init_matrix_from_file(Matrix *m, const char *filename, int rows,
+                           int cols) {
+  double *data = malloc(rows * cols * sizeof(double));
+  load_csv(filename, data, rows, cols);
+  init_matrix_from_array(m, data, rows, cols);
+  free(data);
+}
+
 void matrix_add_matrixt(Matrix *result, const Matrix *a, const Matrix *b) {
   if (result->rows != a->rows || result->rows != b->rows ||
       result->cols != a->cols || result->cols != b->cols) {
@@ -74,7 +84,7 @@ void matrix_add_matrixt(Matrix *result, const Matrix *a, const Matrix *b) {
   }
 }
 
-void matrix_multiply_matrix(Matrix *result, const Matrix *a, const Matrix *b) {
+void matrix_mul_matrix(Matrix *result, const Matrix *a, const Matrix *b) {
   if (result->rows != a->rows || result->cols != b->cols ||
       a->cols != b->rows) {
     fprintf(stderr, "Error: size mismatch\n");
@@ -88,6 +98,21 @@ void matrix_multiply_matrix(Matrix *result, const Matrix *a, const Matrix *b) {
         sum += a->elements[i * a->cols + k] * b->elements[k * b->cols + j];
       }
       result->elements[i * result->cols + j] = sum;
+    }
+  }
+}
+
+void matrix_sub_matrix(Matrix *result, const Matrix *a, const Matrix *b) {
+  if (result->rows != a->rows || result->rows != b->rows ||
+      result->cols != a->cols || result->cols != b->cols) {
+    fprintf(stderr, "Error: size mismatch\n");
+    exit(1);
+  }
+
+  for (int i = 0; i < result->rows; i++) {
+    for (int j = 0; j < result->cols; j++) {
+      result->elements[i * result->cols + j] =
+          a->elements[i * a->cols + j] - b->elements[i * b->cols + j];
     }
   }
 }
@@ -179,18 +204,41 @@ void transpose_matrix(Matrix *result, const Matrix *m) {
   }
 }
 
-double cross_entropy_loss(const Matrix *y, const Matrix *m) {
-  Matrix *m2 = new_matrix(m->rows, m->cols);
-  softmax_matrix(m2, m);
-
-  double loss = 0;
-  for (int i = 0; i < m->rows; i++) {
-    int label = (int)y->elements[i];
-    loss += log(m2->elements[i * m2->cols + label]);
+double cross_entropy_loss(const Matrix *y_true, const Matrix *y_pred) {
+  /* y_true is a one-hot encoded matrix
+   * y_pred is a logits matrix (before softmax)
+   */
+  if (y_true->rows != y_pred->rows || y_true->cols != y_pred->cols) {
+    fprintf(stderr, "Error: size mismatch\n");
+    exit(1);
   }
 
-  free_matrix(m2);
-  return -loss / m->rows;
+  Matrix *y_pred_softmax = new_matrix(y_pred->rows, y_pred->cols);
+  softmax_matrix(y_pred_softmax, y_pred);
+
+  double loss = 0;
+  double epsilon = 1e-15;
+  for (int i = 0; i < y_true->rows; i++) {
+    for (int j = 0; j < y_true->cols; j++) {
+      if (y_true->elements[i * y_true->cols + j] > 0) {
+        double prob =
+            y_pred_softmax->elements[i * y_pred_softmax->cols + j] + epsilon;
+        loss += y_true->elements[i * y_true->cols + j] * log(prob);
+      }
+    }
+  }
+
+  free_matrix(y_pred_softmax);
+  return -loss / y_true->rows;
+}
+
+void update_matrix(Matrix *m, double learning_rate) {
+  for (int i = 0; i < m->rows; i++) {
+    for (int j = 0; j < m->cols; j++) {
+      m->elements[i * m->cols + j] -=
+          learning_rate * m->gradients[i * m->cols + j];
+    }
+  }
 }
 
 void print_matrix(Matrix *m) {

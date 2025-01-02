@@ -14,6 +14,7 @@ struct Network {
   void (*init)(Network *net);
   void (*free)(Network *net);
   Matrix *(*forward)(Network *net, Matrix *X);
+  void (*backward)(Network *net, Matrix *X, Matrix *y_true);
 };
 
 void init_network(Network *net) {
@@ -38,7 +39,7 @@ void free_network(Network *net) {
 
 Matrix *forward(Network *net, Matrix *X) {
   Matrix *t1 = new_matrix(X->rows, 50);
-  matrix_multiply_matrix(t1, X, net->W1);
+  matrix_mul_matrix(t1, X, net->W1);
 
   Matrix *a1 = new_matrix(X->rows, 50);
   matrix_add_vector(a1, t1, net->b1);
@@ -47,7 +48,7 @@ Matrix *forward(Network *net, Matrix *X) {
   sigmoid_matrix(z1, a1);
 
   Matrix *t2 = new_matrix(X->rows, 100);
-  matrix_multiply_matrix(t2, z1, net->W2);
+  matrix_mul_matrix(t2, z1, net->W2);
 
   Matrix *a2 = new_matrix(X->rows, 100);
   matrix_add_vector(a2, t2, net->b2);
@@ -56,13 +57,13 @@ Matrix *forward(Network *net, Matrix *X) {
   sigmoid_matrix(z2, a2);
 
   Matrix *t3 = new_matrix(X->rows, 10);
-  matrix_multiply_matrix(t3, z2, net->W3);
+  matrix_mul_matrix(t3, z2, net->W3);
 
   Matrix *a3 = new_matrix(X->rows, 10);
   matrix_add_vector(a3, t3, net->b3);
 
-  Matrix *y = new_matrix(X->rows, 10);
-  softmax_matrix(y, a3);
+  // Matrix *y = new_matrix(X->rows, 10);
+  // softmax_matrix(y, a3);
 
   free_matrix(t1);
   free_matrix(a1);
@@ -71,9 +72,15 @@ Matrix *forward(Network *net, Matrix *X) {
   free_matrix(a2);
   free_matrix(z2);
   free_matrix(t3);
-  free_matrix(a3);
+  // free_matrix(a3);
 
-  return y;
+  return a3;
+}
+
+void backward(Network *net, Matrix *X, Matrix *y_true) {
+  // Forward pass
+
+  // Backward pass
 }
 
 Network *new_network() {
@@ -81,16 +88,42 @@ Network *new_network() {
   net->init = init_network;
   net->free = free_network;
   net->forward = forward;
+  net->backward = backward;
   net->init(net);
   return net;
 }
 
-void init_matrix_from_file(Matrix *m, const char *filename, int rows,
-                           int cols) {
-  double *data = malloc(rows * cols * sizeof(double));
-  load_csv(filename, data, rows, cols);
-  init_matrix_from_array(m, data, rows, cols);
-  free(data);
+double calculate_accuracy(Network *net, Matrix *X, Matrix *y_true) {
+  /* X is input data
+   * y_true is one-hot encoded labels
+   */
+  Matrix *y_pred = net->forward(net, X);
+
+  int correct = 0;
+  for (int i = 0; i < X->rows; i++) {
+    int pred = 0;
+    double max = y_pred->elements[i * y_pred->cols];
+    for (int j = 0; j < y_pred->cols; j++) {
+      if (y_pred->elements[i * y_pred->cols + j] > max) {
+        max = y_pred->elements[i * y_pred->cols + j];
+        pred = j;
+      }
+    }
+
+    int label = 0;
+    max = y_true->elements[i * y_true->cols];
+    for (int j = 0; j < y_true->cols; j++) {
+      if (y_true->elements[i * y_true->cols + j] > max) {
+        max = y_true->elements[i * y_true->cols + j];
+        label = j;
+      }
+    }
+
+    if (pred == label)
+      correct++;
+  }
+
+  return (double)correct / X->rows;
 }
 
 int main(void) {
@@ -98,52 +131,52 @@ int main(void) {
 
   // Load datasets
   double *data = malloc(ROWS * COLS * sizeof(double));
-  double *labels = malloc(ROWS * sizeof(double));
+  double *labels = malloc(ROWS * sizeof(double) * 10);
   load_mnist_datasets("../datasets/mnist_test.csv", data, labels);
 
   Matrix *X = new_matrix(ROWS, COLS);
   init_matrix_from_array(X, data, ROWS, COLS);
   free(data);
 
-  // Load weights
+  Matrix *y_true = new_matrix(ROWS, 10); // Assuming y_true is one-hot encoded
+  init_matrix_from_array(y_true, labels, ROWS, 10);
+  free(labels);
+
+  // initialize network
   Network *net = new_network();
-  init_matrix_from_file(net->W1, "../datasets/W1.csv", COLS, 50);
-  init_matrix_from_file(net->W2, "../datasets/W2.csv", 50, 100);
-  init_matrix_from_file(net->W3, "../datasets/W3.csv", 100, 10);
+  init_matrix_random(net->W1);
+  init_matrix_random(net->W2);
+  init_matrix_random(net->W3);
+  init_matrix_random(net->b1);
+  init_matrix_random(net->b2);
+  init_matrix_random(net->b3);
 
-  Matrix *b1_ = new_matrix(50, 1);
-  init_matrix_from_file(b1_, "../datasets/b1.csv", 50, 1);
-  transpose_matrix(net->b1, b1_);
-  free_matrix(b1_);
+  // Train network
+  int epochs = 10;
+  for (int i = 0; i < epochs; i++) {
+    // Forward pass
+    Matrix *y_pred = net->forward(net, X);
 
-  Matrix *b2_ = new_matrix(100, 1);
-  init_matrix_from_file(b2_, "../datasets/b2.csv", 100, 1);
-  transpose_matrix(net->b2, b2_);
-  free_matrix(b2_);
+    // Calculate loss
+    double loss = cross_entropy_loss(y_true, y_pred);
+    printf("Epoch %d: Loss: %f\n", i, loss);
 
-  Matrix *b3_ = new_matrix(10, 1);
-  init_matrix_from_file(b3_, "../datasets/b3.csv", 10, 1);
-  transpose_matrix(net->b3, b3_);
-  free_matrix(b3_);
+    // Backward pass
+    net->backward(net, X, y_true);
+
+    // Update weights
+    double learning_rate = 0.01;
+    update_matrix(net->W1, learning_rate);
+    update_matrix(net->W2, learning_rate);
+    update_matrix(net->W3, learning_rate);
+    update_matrix(net->b1, learning_rate);
+    update_matrix(net->b2, learning_rate);
+    update_matrix(net->b3, learning_rate);
+  }
 
   // calculate accuracy
-  int correct = 0;
-  Matrix *y = net->forward(net, X);
-  for (int i = 0; i < ROWS; i++) {
-    int label = (int)labels[i];
-    int pred = 0;
-    double max = y->elements[i * y->cols];
-    for (int j = 1; j < y->cols; j++) {
-      if (y->elements[i * y->cols + j] > max) {
-        max = y->elements[i * y->cols + j];
-        pred = j;
-      }
-    }
-    if (abs(pred - label) < 0.001) {
-      correct++;
-    }
-  }
-  printf("Accuracy: %.2f%%\n", (double)correct / ROWS * 100);
+  double accrary = calculate_accuracy(net, X, y_true);
+  printf("Accuracy: %.2f%%\n", (double)accrary * 100);
 
   return 0;
 }

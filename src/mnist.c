@@ -78,7 +78,13 @@ void load_mnist_datasets(const char *filename, double *data, double *labels) {
     for (int j = 0; j < COLS; j++) {
       data[i * COLS + j] = buffer[(i + 1) * (COLS + 1) + j] / 255.0;
     }
-    labels[i] = buffer[(i + 1) * (COLS + 1) + COLS];
+    // one-hot encoding
+    for (int j = 0; j < 10; j++) {
+      labels[i * 10 + j] = 0;
+      if (buffer[(i + 1) * (COLS + 1) + COLS] == j) {
+        labels[i * 10 + j] = 1;
+      }
+    }
   }
 
   free(buffer);
