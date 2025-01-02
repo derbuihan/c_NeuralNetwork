@@ -1,178 +1,21 @@
 #include "matrix.h"
 #include "mnist.h"
+#include "simple_network.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-typedef struct Network Network;
-struct Network {
-  Matrix *W1;
-  Matrix *W2;
-  Matrix *W3;
-  Matrix *b1;
-  Matrix *b2;
-  Matrix *b3;
-
-  Matrix *grad_W1;
-  Matrix *grad_W2;
-  Matrix *grad_W3;
-  Matrix *grad_b1;
-  Matrix *grad_b2;
-  Matrix *grad_b3;
-
-  void (*init)(Network *net);
-  void (*free)(Network *net);
-  Matrix *(*forward)(Network *net, Matrix *X);
-  void (*backward)(Network *net, Matrix *X, Matrix *y_true);
-};
-
-void init_network(Network *net) {
-  net->W1 = new_matrix(COLS, 50);
-  net->W2 = new_matrix(50, 100);
-  net->W3 = new_matrix(100, 10);
-
-  net->b1 = new_matrix(1, 50);
-  net->b2 = new_matrix(1, 100);
-  net->b3 = new_matrix(1, 10);
-
-  net->grad_W1 = new_matrix(COLS, 50);
-  net->grad_W2 = new_matrix(50, 100);
-  net->grad_W3 = new_matrix(100, 10);
-
-  net->grad_b1 = new_matrix(1, 50);
-  net->grad_b2 = new_matrix(1, 100);
-  net->grad_b3 = new_matrix(1, 10);
-}
-
-void free_network(Network *net) {
-  free_matrix(net->W1);
-  free_matrix(net->W2);
-  free_matrix(net->W3);
-  free_matrix(net->b1);
-  free_matrix(net->b2);
-  free_matrix(net->b3);
-  free(net);
-}
-
-Matrix *forward(Network *net, Matrix *X) {
-  Matrix *t1 = new_matrix(X->rows, 50);
-  matrix_mul_matrix(t1, X, net->W1);
-
-  Matrix *a1 = new_matrix(X->rows, 50);
-  matrix_add_vector(a1, t1, net->b1);
-
-  Matrix *z1 = new_matrix(X->rows, 50);
-  sigmoid_matrix(z1, a1);
-
-  Matrix *t2 = new_matrix(X->rows, 100);
-  matrix_mul_matrix(t2, z1, net->W2);
-
-  Matrix *a2 = new_matrix(X->rows, 100);
-  matrix_add_vector(a2, t2, net->b2);
-
-  Matrix *z2 = new_matrix(X->rows, 100);
-  sigmoid_matrix(z2, a2);
-
-  Matrix *t3 = new_matrix(X->rows, 10);
-  matrix_mul_matrix(t3, z2, net->W3);
-
-  Matrix *a3 = new_matrix(X->rows, 10);
-  matrix_add_vector(a3, t3, net->b3);
-
-  // Matrix *y = new_matrix(X->rows, 10);
-  // softmax_matrix(y, a3);
-
-  free_matrix(t1);
-  free_matrix(a1);
-  free_matrix(z1);
-  free_matrix(t2);
-  free_matrix(a2);
-  free_matrix(z2);
-  free_matrix(t3);
-  // free_matrix(a3);
-
-  return a3;
-}
-
-void backward(Network *net, Matrix *X, Matrix *y_true) {
-  // Forward pass
-  Matrix *t1 = new_matrix(X->rows, 50);
-  matrix_mul_matrix(t1, X, net->W1);
-  Matrix *a1 = new_matrix(X->rows, 50);
-  matrix_add_vector(a1, t1, net->b1);
-  Matrix *z1 = new_matrix(X->rows, 50);
-  sigmoid_matrix(z1, a1);
-
-  Matrix *t2 = new_matrix(X->rows, 100);
-  matrix_mul_matrix(t2, z1, net->W2);
-  Matrix *a2 = new_matrix(X->rows, 100);
-  matrix_add_vector(a2, t2, net->b2);
-  Matrix *z2 = new_matrix(X->rows, 100);
-  sigmoid_matrix(z2, a2);
-
-  Matrix *t3 = new_matrix(X->rows, 10);
-  matrix_mul_matrix(t3, z2, net->W3);
-  Matrix *a3 = new_matrix(X->rows, 10);
-  matrix_add_vector(a3, t3, net->b3);
-
-  // Backward pass
-  Matrix *dL_da3 = new_matrix(X->rows, 10);
-  matrix_sub_matrix(dL_da3, a3, y_true);
-
-  matrix_transpose_mul_matrix(net->grad_W3, z2, dL_da3);
-  matrix_sum_rows(net->grad_b3, dL_da3);
-
-  Matrix *dL_dz2 = new_matrix(X->rows, 100);
-  matrix_mul_matrix_transpose(dL_dz2, dL_da3, net->W3);
-  Matrix *dL_da2 = new_matrix(X->rows, 100);
-  sigmoid_derivative_matrix(dL_da2, a2);
-  matrix_elementwise_mul(dL_dz2, dL_dz2, dL_da2);
-
-  matrix_transpose_mul_matrix(net->grad_W2, z1, dL_dz2);
-  matrix_sum_rows(net->grad_b2, dL_dz2);
-
-  Matrix *dL_dz1 = new_matrix(X->rows, 50);
-  matrix_mul_matrix_transpose(dL_dz1, dL_dz2, net->W2);
-  Matrix *dL_da1 = new_matrix(X->rows, 50);
-  sigmoid_derivative_matrix(dL_da1, a1);
-  matrix_elementwise_mul(dL_dz1, dL_dz1, dL_da1);
-
-  matrix_transpose_mul_matrix(net->grad_W1, X, dL_dz1);
-  matrix_sum_rows(net->grad_b1, dL_dz1);
-
-  // Free temporary matrices
-  free_matrix(t1);
-  free_matrix(a1);
-  free_matrix(z1);
-  free_matrix(t2);
-  free_matrix(a2);
-  free_matrix(z2);
-  free_matrix(t3);
-  free_matrix(a3);
-  free_matrix(dL_da3);
-  free_matrix(dL_dz2);
-  free_matrix(dL_da2);
-  free_matrix(dL_dz1);
-  free_matrix(dL_da1);
-}
-
-Network *new_network() {
-  Network *net = malloc(sizeof(Network));
-  net->init = init_network;
-  net->free = free_network;
-  net->forward = forward;
-  net->backward = backward;
-  net->init(net);
-  return net;
-}
-
-double calculate_accuracy(Network *net, Matrix *X, Matrix *y_true) {
-  /* X is input data
-   * y_true is one-hot encoded labels
+double calculate_accuracy(Matrix *y_true, Matrix *y_pred) {
+  /* y_true is one-hot encoded labels
+   * y_pred is logits matrix
    */
-  Matrix *y_pred = net->forward(net, X);
+  if (y_true->rows != y_pred->rows || y_true->cols != y_pred->cols) {
+    fprintf(stderr, "Error: size mismatch\n");
+    exit(1);
+  }
 
   int correct = 0;
-  for (int i = 0; i < X->rows; i++) {
+  for (int i = 0; i < y_pred->rows; i++) {
     int pred = 0;
     double max = y_pred->elements[i * y_pred->cols];
     for (int j = 0; j < y_pred->cols; j++) {
@@ -194,10 +37,7 @@ double calculate_accuracy(Network *net, Matrix *X, Matrix *y_true) {
     if (pred == label)
       correct++;
   }
-
-  free_matrix(y_pred);
-
-  return (double)correct / X->rows;
+  return (double)correct / y_true->rows;
 }
 
 void update_weights(Matrix *m, Matrix *grad_m, double learning_rate) {
@@ -209,10 +49,10 @@ void update_weights(Matrix *m, Matrix *grad_m, double learning_rate) {
   }
 }
 
-void create_mini_batch(Matrix *X, Matrix *y_true, Matrix *X_batch,
-                       Matrix *y_true_batch, int batch_size) {
-  // Randomly select indices
+void load_mini_batch(Matrix *X, Matrix *y_true, Matrix *X_batch,
+                     Matrix *y_true_batch, int batch_size) {
   int indices[batch_size];
+
   int count = 0;
   while (count < batch_size) {
     int index = rand() % (X->rows);
@@ -257,41 +97,30 @@ int main(void) {
   init_matrix_from_array(y_true, labels, ROWS, 10);
   free(labels);
 
-  // initialize network
-  Network *net = new_network();
-  init_matrix_random(net->W1);
-  init_matrix_random(net->W2);
-  init_matrix_random(net->W3);
-  init_matrix_random(net->b1);
-  init_matrix_random(net->b2);
-  init_matrix_random(net->b3);
-
-  // Train network
-  int epochs = 1000;
+  // Mini batch
   int batch_size = 512;
   Matrix *X_batch = new_matrix(batch_size, COLS);
   Matrix *y_true_batch = new_matrix(batch_size, 10);
-  for (int i = 1; i <= epochs; i++) {
 
-    // mini-batch
-    create_mini_batch(X, y_true, X_batch, y_true_batch, batch_size);
+  // Initialize network
+  Network *net = new_network();
+
+  // Train network
+  int epochs = 1000;
+  for (int i = 1; i <= epochs; i++) {
+    // Load mini batch
+    load_mini_batch(X, y_true, X_batch, y_true_batch, batch_size);
 
     // Forward pass
     Matrix *y_pred_batch = net->forward(net, X_batch);
-
-    // Calculate loss
+    double accrary = calculate_accuracy(y_true_batch, y_pred_batch);
     double loss = cross_entropy_loss(y_true_batch, y_pred_batch);
-    printf("Epoch %d: Loss: %f\n", i, loss);
+    printf("Epoch %d: Loss: %f, Accuracy: %.2f%%\n", i, loss,
+           (double)accrary * 100);
     free_matrix(y_pred_batch);
-
-    // calculate accuracy
-    double accrary = calculate_accuracy(net, X_batch, y_true_batch);
-    printf("Accuracy: %.2f%%\n", (double)accrary * 100);
 
     // Backward pass
     net->backward(net, X_batch, y_true_batch);
-
-    // Update weights
     double learning_rate = 0.0001;
 
     update_weights(net->W1, net->grad_W1, learning_rate);

@@ -12,7 +12,8 @@ Matrix *new_matrix_from_file(const char *filename, int rows, int cols);
 
 void free_matrix(Matrix *m);
 
-void init_matrix_random(Matrix *m);
+void init_matrix_uniform_random(Matrix *m, double low, double high);
+void init_matrix_normal_random(Matrix *m, double mean, double std);
 void init_matrix_from_array(Matrix *m, double *data, const int rows,
                             const int cols);
 void init_matrix_from_file(Matrix *m, const char *filename, int rows, int cols);

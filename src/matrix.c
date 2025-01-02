@@ -30,17 +30,29 @@ void free_matrix(Matrix *m) {
   free(m);
 }
 
-double rand_normal(double mean, double stddev) {
+static double rand_uniform(double low, double high) {
+  return low + (high - low) * rand() / RAND_MAX;
+}
+
+void init_matrix_uniform_random(Matrix *m, double low, double high) {
+  for (int i = 0; i < m->rows; i++) {
+    for (int j = 0; j < m->cols; j++) {
+      m->elements[i * m->cols + j] = rand_uniform(low, high);
+    }
+  }
+}
+
+static double rand_normal(double mean, double std) {
   double u = rand() / (RAND_MAX + 1.0);
   double v = rand() / (RAND_MAX + 1.0);
   double z = sqrt(-2 * log(u)) * cos(2 * M_PI * v);
-  return mean + stddev * z;
+  return mean + std * z;
 }
 
-void init_matrix_random(Matrix *m) {
+void init_matrix_normal_random(Matrix *m, double mean, double std) {
   for (int i = 0; i < m->rows; i++) {
     for (int j = 0; j < m->cols; j++) {
-      m->elements[i * m->cols + j] = rand_normal(0, 1);
+      m->elements[i * m->cols + j] = rand_normal(mean, std);
     }
   }
 }
