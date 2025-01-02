@@ -22,6 +22,7 @@ void matrix_add_vector(Matrix *result, const Matrix *m, const Matrix *v);
 void sigmoid_matrix(Matrix *result, const Matrix *m);
 void softmax_matrix(Matrix *result, const Matrix *m);
 void transpose_matrix(Matrix *result, const Matrix *m);
+double cross_entropy_loss(const Matrix *y, const Matrix *m);
 
 void print_matrix(Matrix *m);
 

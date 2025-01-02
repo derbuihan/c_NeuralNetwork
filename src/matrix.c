@@ -179,6 +179,20 @@ void transpose_matrix(Matrix *result, const Matrix *m) {
   }
 }
 
+double cross_entropy_loss(const Matrix *y, const Matrix *m) {
+  Matrix *m2 = new_matrix(m->rows, m->cols);
+  softmax_matrix(m2, m);
+
+  double loss = 0;
+  for (int i = 0; i < m->rows; i++) {
+    int label = (int)y->elements[i];
+    loss += log(m2->elements[i * m2->cols + label]);
+  }
+
+  free_matrix(m2);
+  return -loss / m->rows;
+}
+
 void print_matrix(Matrix *m) {
   for (int i = 0; i < m->rows; i++) {
     for (int j = 0; j < m->cols; j++) {
