@@ -15,3 +15,19 @@ cd dataset
 python digits.py
 python mnist.py
 ```
+
+## Build
+
+To build the project, you need to have `gcc` installed. You can build the project using the following commands:
+
+```bash
+cd /Users/derbuihan/Programs/C/c_NeuralNetwork
+mkdir build
+cd build
+cmake ..
+make
+```
+
+## License
+
+This project is licensed under the MIT License.
