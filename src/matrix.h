@@ -3,7 +3,6 @@
 
 typedef struct Matrix {
   double *elements;
-  double *gradients;
   int rows;
   int cols;
 } Matrix;
@@ -22,13 +21,19 @@ void matrix_add_matrixt(Matrix *result, const Matrix *a, const Matrix *b);
 void matrix_mul_matrix(Matrix *result, const Matrix *a, const Matrix *b);
 void matrix_sub_matrix(Matrix *result, const Matrix *a, const Matrix *b);
 void matrix_add_vector(Matrix *result, const Matrix *m, const Matrix *v);
+void matrix_mul_scalar(Matrix *result, const Matrix *m, const double scalar);
 void sigmoid_matrix(Matrix *result, const Matrix *m);
 void softmax_matrix(Matrix *result, const Matrix *m);
 void transpose_matrix(Matrix *result, const Matrix *m);
 double cross_entropy_loss(const Matrix *y, const Matrix *m);
-void update_matrix(Matrix *m, double learning_rate);
+void matrix_sum_rows(Matrix *result, Matrix *m);
+void matrix_transpose_mul_matrix(Matrix *result, const Matrix *a,
+                                 const Matrix *b);
+void matrix_mul_matrix_transpose(Matrix *result, const Matrix *a,
+                                 const Matrix *b);
+void sigmoid_derivative_matrix(Matrix *result, const Matrix *m);
+void matrix_elementwise_mul(Matrix *result, const Matrix *a, const Matrix *b);
 
 void print_matrix(Matrix *m);
-double sum_elements_matrix(const Matrix *m);
 
 #endif // MATRIX_H

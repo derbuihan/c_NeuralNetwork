@@ -10,7 +10,6 @@ Matrix *new_matrix(int rows, int cols) {
   Matrix *m = malloc(sizeof(Matrix));
 
   m->elements = malloc(rows * cols * sizeof(double));
-  m->gradients = malloc(rows * cols * sizeof(double));
   m->rows = rows;
   m->cols = cols;
 
@@ -28,7 +27,6 @@ Matrix *new_matrix_from_file(const char *filename, int rows, int cols) {
 
 void free_matrix(Matrix *m) {
   free(m->elements);
-  free(m->gradients);
   free(m);
 }
 
@@ -150,6 +148,20 @@ void matrix_add_vector(Matrix *result, const Matrix *m, const Matrix *v) {
   }
 }
 
+void matrix_mul_scalar(Matrix *result, const Matrix *m, const double scalar) {
+  if (result->rows != m->rows || result->cols != m->cols) {
+    fprintf(stderr, "Error: size mismatch\n");
+    exit(1);
+  }
+
+  for (int i = 0; i < result->rows; i++) {
+    for (int j = 0; j < result->cols; j++) {
+      result->elements[i * result->cols + j] =
+          m->elements[i * m->cols + j] * scalar;
+    }
+  }
+}
+
 void sigmoid_matrix(Matrix *result, const Matrix *m) {
   if (result->rows != m->rows || result->cols != m->cols) {
     fprintf(stderr, "Error: size mismatch\n");
@@ -172,7 +184,7 @@ void softmax_matrix(Matrix *result, const Matrix *m) {
 
   for (int i = 0; i < result->rows; i++) {
     double max = m->elements[i * m->cols];
-    for (int j = 1; j < result->cols; j++) {
+    for (int j = 0; j < result->cols; j++) {
       if (m->elements[i * m->cols + j] > max) {
         max = m->elements[i * m->cols + j];
       }
@@ -232,11 +244,87 @@ double cross_entropy_loss(const Matrix *y_true, const Matrix *y_pred) {
   return -loss / y_true->rows;
 }
 
-void update_matrix(Matrix *m, double learning_rate) {
-  for (int i = 0; i < m->rows; i++) {
-    for (int j = 0; j < m->cols; j++) {
-      m->elements[i * m->cols + j] -=
-          learning_rate * m->gradients[i * m->cols + j];
+void matrix_sum_rows(Matrix *result, Matrix *m) {
+  if (result->rows != 1 || result->cols != m->cols) {
+    fprintf(stderr, "Error: size mismatch\n");
+    exit(1);
+  }
+
+  for (int j = 0; j < m->cols; j++) {
+    result->elements[j] = 0.0;
+    for (int i = 0; i < m->rows; i++) {
+      result->elements[j] += m->elements[i * m->cols + j];
+    }
+  }
+}
+
+void matrix_transpose_mul_matrix(Matrix *result, const Matrix *a,
+                                 const Matrix *b) {
+  /* result = a ^ T * b
+   */
+  if (result->rows != a->cols || result->cols != b->cols ||
+      a->rows != b->rows) {
+    fprintf(stderr, "Error: size mismatch\n");
+    exit(1);
+  }
+
+  for (int i = 0; i < result->rows; i++) {
+    for (int j = 0; j < result->cols; j++) {
+      double sum = 0;
+      for (int k = 0; k < a->rows; k++) {
+        sum += a->elements[k * a->cols + i] * b->elements[k * b->cols + j];
+      }
+      result->elements[i * result->cols + j] = sum;
+    }
+  }
+}
+
+void matrix_mul_matrix_transpose(Matrix *result, const Matrix *a,
+                                 const Matrix *b) {
+  /* result = a * b ^ T
+   */
+  if (result->rows != a->rows || result->cols != b->rows ||
+      a->cols != b->cols) {
+    fprintf(stderr, "Error: size mismatch\n");
+    exit(1);
+  }
+
+  for (int i = 0; i < result->rows; i++) {
+    for (int j = 0; j < result->cols; j++) {
+      double sum = 0;
+      for (int k = 0; k < a->cols; k++) {
+        sum += a->elements[i * a->cols + k] * b->elements[j * b->cols + k];
+      }
+      result->elements[i * result->cols + j] = sum;
+    }
+  }
+}
+
+void sigmoid_derivative_matrix(Matrix *result, const Matrix *m) {
+  if (result->rows != m->rows || result->cols != m->cols) {
+    fprintf(stderr, "Error: size mismatch\n");
+    exit(1);
+  }
+
+  for (int i = 0; i < result->rows; i++) {
+    for (int j = 0; j < result->cols; j++) {
+      double sigmoid = 1 / (1 + exp(-m->elements[i * m->cols + j]));
+      result->elements[i * result->cols + j] = sigmoid * (1 - sigmoid);
+    }
+  }
+}
+
+void matrix_elementwise_mul(Matrix *result, const Matrix *a, const Matrix *b) {
+  if (result->rows != a->rows || result->rows != b->rows ||
+      result->cols != a->cols || result->cols != b->cols) {
+    fprintf(stderr, "Error: size mismatch\n");
+    exit(1);
+  }
+
+  for (int i = 0; i < result->rows; i++) {
+    for (int j = 0; j < result->cols; j++) {
+      result->elements[i * result->cols + j] =
+          a->elements[i * a->cols + j] * b->elements[i * b->cols + j];
     }
   }
 }
@@ -248,14 +336,4 @@ void print_matrix(Matrix *m) {
     }
     printf("\n");
   }
-}
-
-double sum_elements_matrix(const Matrix *m) {
-  double sum = 0;
-  for (int i = 0; i < m->rows; i++) {
-    for (int j = 0; j < m->cols; j++) {
-      sum += m->elements[i * m->cols + j];
-    }
-  }
-  return sum;
 }
