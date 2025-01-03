@@ -6,6 +6,8 @@
 #include <stdlib.h>
 
 void init_network(Network *net) {
+  int COLS = 28 * 28;
+
   net->W1 = new_matrix(COLS, 50);
   net->W2 = new_matrix(50, 100);
   net->W3 = new_matrix(100, 10);
