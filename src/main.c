@@ -40,15 +40,6 @@ double calculate_accuracy(Matrix *y_true, Matrix *y_pred) {
   return (double)correct / y_true->rows;
 }
 
-void update_weights(Matrix *m, Matrix *grad_m, double learning_rate) {
-  for (int i = 0; i < m->rows; i++) {
-    for (int j = 0; j < m->cols; j++) {
-      m->elements[i * m->cols + j] -=
-          learning_rate * grad_m->elements[i * m->cols + j];
-    }
-  }
-}
-
 void load_mini_batch(Matrix *X, Matrix *y_true, Matrix *X_batch,
                      Matrix *y_true_batch, int batch_size) {
   int indices[batch_size];
