@@ -44,13 +44,14 @@ SGD_Optimizer *new_sgd_optimizer(Network *net, double learning_rate) {
 
 void free_adam_optimizer(Adam_Optimizer *optim) {
   Network *net = optim->net;
+
+  int idx = 0;
   for (int i = 0; i < net->num_layers; i++) {
     Layer *layer = net->layers[i];
     for (int j = 0; j < layer->num_params; j++) {
-      int idx = i * layer->num_params + j;
-      int params_size = layer->params[j]->rows * layer->params[j]->cols;
-      optim->moment1[idx] = malloc(params_size * sizeof(double));
-      optim->moment2[idx] = malloc(params_size * sizeof(double));
+      free(optim->moment1[idx]);
+      free(optim->moment2[idx]);
+      idx++;
     }
   }
   free(optim->moment1);

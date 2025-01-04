@@ -30,7 +30,7 @@ Matrix *new_matrix(int rows, int cols) {
   m->gradients = malloc(rows * cols * sizeof(double));
   m->rows = rows;
   m->cols = cols;
-  m->inputs = NULL;
+  m->inputs = malloc(2 * sizeof(Matrix *));
   m->num_inputs = 0;
   m->backward = backward_none;
   m->zero_grad = zero_grad_matrix;
@@ -130,7 +130,6 @@ void matrix_add_matrix(Matrix *result, Matrix *a, Matrix *b) {
     }
   }
 
-  result->inputs = malloc(2 * sizeof(Matrix *));
   result->inputs[0] = a;
   result->inputs[1] = b;
   result->num_inputs = 2;
@@ -172,7 +171,6 @@ void matrix_mul_matrix(Matrix *result, Matrix *a, Matrix *b) {
     }
   }
 
-  result->inputs = malloc(2 * sizeof(Matrix *));
   result->inputs[0] = a;
   result->inputs[1] = b;
   result->num_inputs = 2;
@@ -218,7 +216,6 @@ void matrix_add_vector(Matrix *result, Matrix *m, Matrix *v) {
     }
   }
 
-  result->inputs = malloc(2 * sizeof(Matrix *));
   result->inputs[0] = m;
   result->inputs[1] = v;
   result->num_inputs = 2;
@@ -252,7 +249,6 @@ void sigmoid_matrix(Matrix *result, Matrix *m) {
     }
   }
 
-  result->inputs = malloc(sizeof(Matrix *));
   result->inputs[0] = m;
   result->num_inputs = 1;
   result->backward = backward_sigmoid_matrix;

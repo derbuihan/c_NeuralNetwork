@@ -97,6 +97,7 @@ void validate(Network *net, Matrix *X_test, Matrix *y_test) {
          (double)accuracy * 100);
 
   free_matrix(X_batch);
+  free_matrix(y_pred_softmax);
   free_matrix(y_true_batch);
 }
 
@@ -145,7 +146,7 @@ int main(void) {
   Loss *loss_fn = new_cross_entropy_loss(BATCH_SIZE, 10);
 
   // Train loop
-  for (int i = 0; i <= 10000; i++) {
+  for (int i = 0; i <= 100; i++) {
     // Load mini-batch
     Matrix *X_batch = new_matrix(BATCH_SIZE, X_train->cols);
     Matrix *y_true_batch = new_matrix(BATCH_SIZE, 10);
@@ -166,7 +167,7 @@ int main(void) {
     free_matrix(y_true_batch);
 
     // Print loss
-    if (i % 1000 == 0) {
+    if (i % 10 == 0) {
       printf("Epoch %d: TrainLoss: %f ", i, loss);
       validate(net, X_test, y_test);
     }
@@ -177,9 +178,9 @@ int main(void) {
   free_matrix(X_test);
   free_matrix(y_test);
 
-  free_network(net);
-  free_adam_optimizer(optim);
   free_loss(loss_fn);
+  free_adam_optimizer(optim);
+  free_network(net);
 
   return 0;
 }
