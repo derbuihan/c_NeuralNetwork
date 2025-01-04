@@ -6,12 +6,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+void backward_none(Matrix *self) {
+  // Do nothing
+}
+
 Matrix *new_matrix(int rows, int cols) {
   Matrix *m = malloc(sizeof(Matrix));
 
   m->elements = malloc(rows * cols * sizeof(double));
+  m->gradients = malloc(rows * cols * sizeof(double));
   m->rows = rows;
   m->cols = cols;
+  m->backward = backward_none;
 
   return m;
 }
@@ -61,6 +67,8 @@ void init_matrix_from_array(Matrix *m, double *data, const int rows,
                             const int cols) {
   if (m->rows != rows || m->cols != cols) {
     fprintf(stderr, "Error: size mismatch\n");
+    fprintf(stderr, "init_matrix_from_array: %d x %d, %d x %d\n", m->rows,
+            m->cols, rows, cols);
     exit(1);
   }
 
@@ -79,10 +87,12 @@ void init_matrix_from_file(Matrix *m, const char *filename, int rows,
   free(data);
 }
 
-void matrix_add_matrixt(Matrix *result, const Matrix *a, const Matrix *b) {
+void matrix_add_matrix(Matrix *result, const Matrix *a, const Matrix *b) {
   if (result->rows != a->rows || result->rows != b->rows ||
       result->cols != a->cols || result->cols != b->cols) {
     fprintf(stderr, "Error: size mismatch\n");
+    fprintf(stderr, "matrix_add_matrix: %d x %d, %d x %d, %d x %d\n",
+            result->rows, result->cols, a->rows, a->cols, b->rows, b->cols);
     exit(1);
   }
 
@@ -98,6 +108,8 @@ void matrix_mul_matrix(Matrix *result, const Matrix *a, const Matrix *b) {
   if (result->rows != a->rows || result->cols != b->cols ||
       a->cols != b->rows) {
     fprintf(stderr, "Error: size mismatch\n");
+    fprintf(stderr, "matrix_mul_matrix: %d x %d, %d x %d, %d x %d\n",
+            result->rows, result->cols, a->rows, a->cols, b->rows, b->cols);
     exit(1);
   }
 
@@ -116,6 +128,8 @@ void matrix_sub_matrix(Matrix *result, const Matrix *a, const Matrix *b) {
   if (result->rows != a->rows || result->rows != b->rows ||
       result->cols != a->cols || result->cols != b->cols) {
     fprintf(stderr, "Error: size mismatch\n");
+    fprintf(stderr, "matrix_sub_matrix: %d x %d, %d x %d, %d x %d\n",
+            result->rows, result->cols, a->rows, a->cols, b->rows, b->cols);
     exit(1);
   }
 
@@ -130,12 +144,16 @@ void matrix_sub_matrix(Matrix *result, const Matrix *a, const Matrix *b) {
 void matrix_add_vector(Matrix *result, const Matrix *m, const Matrix *v) {
   if (result->rows != m->rows || result->cols != m->cols) {
     fprintf(stderr, "Error: size mismatch\n");
+    fprintf(stderr, "matrix_add_vector: %d x %d, %d x %d, %d x %d\n",
+            result->rows, result->cols, m->rows, m->cols, v->rows, v->cols);
     exit(1);
   }
 
   if (v->cols == 1) {
     if (v->rows != m->rows) {
       fprintf(stderr, "Error: size mismatch\n");
+      fprintf(stderr, "matrix_add_vector: %d x %d, %d x %d, %d x %d\n",
+              result->rows, result->cols, m->rows, m->cols, v->rows, v->cols);
       exit(1);
     }
 
@@ -148,6 +166,8 @@ void matrix_add_vector(Matrix *result, const Matrix *m, const Matrix *v) {
   } else if (v->rows == 1) {
     if (v->cols != m->cols) {
       fprintf(stderr, "Error: size mismatch\n");
+      fprintf(stderr, "matrix_add_vector: %d x %d, %d x %d, %d x %d\n",
+              result->rows, result->cols, m->rows, m->cols, v->rows, v->cols);
       exit(1);
     }
 
@@ -163,6 +183,8 @@ void matrix_add_vector(Matrix *result, const Matrix *m, const Matrix *v) {
 void matrix_mul_scalar(Matrix *result, const Matrix *m, const double scalar) {
   if (result->rows != m->rows || result->cols != m->cols) {
     fprintf(stderr, "Error: size mismatch\n");
+    fprintf(stderr, "matrix_mul_scalar: %d x %d, %d x %d\n", result->rows,
+            result->cols, m->rows, m->cols);
     exit(1);
   }
 
@@ -177,6 +199,8 @@ void matrix_mul_scalar(Matrix *result, const Matrix *m, const double scalar) {
 void sigmoid_matrix(Matrix *result, const Matrix *m) {
   if (result->rows != m->rows || result->cols != m->cols) {
     fprintf(stderr, "Error: size mismatch\n");
+    fprintf(stderr, "sigmoid_matrix: %d x %d, %d x %d\n", result->rows,
+            result->cols, m->rows, m->cols);
     exit(1);
   }
 
@@ -191,6 +215,8 @@ void sigmoid_matrix(Matrix *result, const Matrix *m) {
 void softmax_matrix(Matrix *result, const Matrix *m) {
   if (result->rows != m->rows || result->cols != m->cols) {
     fprintf(stderr, "Error: size mismatch\n");
+    fprintf(stderr, "softmax_matrix: %d x %d, %d x %d\n", result->rows,
+            result->cols, m->rows, m->cols);
     exit(1);
   }
 
@@ -218,6 +244,8 @@ void softmax_matrix(Matrix *result, const Matrix *m) {
 void transpose_matrix(Matrix *result, const Matrix *m) {
   if (result->rows != m->cols || result->cols != m->rows) {
     fprintf(stderr, "Error: size mismatch\n");
+    fprintf(stderr, "transpose_matrix: %d x %d, %d x %d\n", result->rows,
+            result->cols, m->rows, m->cols);
     exit(1);
   }
 
@@ -234,6 +262,8 @@ double cross_entropy_loss(const Matrix *y_true, const Matrix *y_pred) {
    */
   if (y_true->rows != y_pred->rows || y_true->cols != y_pred->cols) {
     fprintf(stderr, "Error: size mismatch\n");
+    fprintf(stderr, "cross_entropy_loss: %d x %d, %d x %d\n", y_true->rows,
+            y_true->cols, y_pred->rows, y_pred->cols);
     exit(1);
   }
 
@@ -259,6 +289,8 @@ double cross_entropy_loss(const Matrix *y_true, const Matrix *y_pred) {
 void matrix_sum_rows(Matrix *result, Matrix *m) {
   if (result->rows != 1 || result->cols != m->cols) {
     fprintf(stderr, "Error: size mismatch\n");
+    fprintf(stderr, "matrix_sum_rows: %d x %d, %d x %d\n", result->rows,
+            result->cols, m->rows, m->cols);
     exit(1);
   }
 
@@ -277,6 +309,8 @@ void matrix_transpose_mul_matrix(Matrix *result, const Matrix *a,
   if (result->rows != a->cols || result->cols != b->cols ||
       a->rows != b->rows) {
     fprintf(stderr, "Error: size mismatch\n");
+    fprintf(stderr, "matrix_transpose_mul_matrix: %d x %d, %d x %d, %d x %d\n",
+            result->rows, result->cols, a->rows, a->cols, b->rows, b->cols);
     exit(1);
   }
 
@@ -298,6 +332,8 @@ void matrix_mul_matrix_transpose(Matrix *result, const Matrix *a,
   if (result->rows != a->rows || result->cols != b->rows ||
       a->cols != b->cols) {
     fprintf(stderr, "Error: size mismatch\n");
+    fprintf(stderr, "matrix_mul_matrix_transpose: %d x %d, %d x %d, %d x %d\n",
+            result->rows, result->cols, a->rows, a->cols, b->rows, b->cols);
     exit(1);
   }
 
@@ -315,6 +351,8 @@ void matrix_mul_matrix_transpose(Matrix *result, const Matrix *a,
 void sigmoid_derivative_matrix(Matrix *result, const Matrix *m) {
   if (result->rows != m->rows || result->cols != m->cols) {
     fprintf(stderr, "Error: size mismatch\n");
+    fprintf(stderr, "sigmoid_derivative_matrix: %d x %d, %d x %d\n",
+            result->rows, result->cols, m->rows, m->cols);
     exit(1);
   }
 
@@ -330,6 +368,8 @@ void matrix_elementwise_mul(Matrix *result, const Matrix *a, const Matrix *b) {
   if (result->rows != a->rows || result->rows != b->rows ||
       result->cols != a->cols || result->cols != b->cols) {
     fprintf(stderr, "Error: size mismatch\n");
+    fprintf(stderr, "matrix_elementwise_mul: %d x %d, %d x %d, %d x %d\n",
+            result->rows, result->cols, a->rows, a->cols, b->rows, b->cols);
     exit(1);
   }
 

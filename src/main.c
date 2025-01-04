@@ -1,3 +1,4 @@
+#include "loss.h"
 #include "matrix.h"
 #include "mnist.h"
 #include "optimizer.h"
@@ -81,46 +82,6 @@ void validate(Network *net, Matrix *X_test, Matrix *y_test) {
   free_matrix(y_pred);
 }
 
-void train(Network *net, Matrix *X_train, Matrix *y_train, Matrix *X_test,
-           Matrix *y_test, int epochs, int batch_size, double learning_rate) {
-  Matrix *X_batch = new_matrix(batch_size, X_train->cols);
-  Matrix *y_true_batch = new_matrix(batch_size, 10);
-
-  Adam_Optimizer *optim_W1 =
-      new_adam_optimizer(net->W1, net->grad_W1, learning_rate);
-  Adam_Optimizer *optim_b1 =
-      new_adam_optimizer(net->b1, net->grad_b1, learning_rate);
-  Adam_Optimizer *optim_W2 =
-      new_adam_optimizer(net->W2, net->grad_W2, learning_rate);
-  Adam_Optimizer *optim_b2 =
-      new_adam_optimizer(net->b2, net->grad_b2, learning_rate);
-  Adam_Optimizer *optim_W3 =
-      new_adam_optimizer(net->W3, net->grad_W3, learning_rate);
-  Adam_Optimizer *optim_b3 =
-      new_adam_optimizer(net->b3, net->grad_b3, learning_rate);
-
-  for (int i = 1; i <= epochs; i++) {
-    load_mini_batch(X_train, y_train, X_batch, y_true_batch, batch_size);
-
-    if (i % 100 == 0) {
-      printf("Epoch %d: ", i);
-      validate(net, X_test, y_test);
-    }
-
-    net->backward(net, X_batch, y_true_batch);
-
-    optim_W1->update(optim_W1);
-    optim_b1->update(optim_b1);
-    optim_W2->update(optim_W2);
-    optim_b2->update(optim_b2);
-    optim_W3->update(optim_W3);
-    optim_b3->update(optim_b3);
-  }
-
-  free_matrix(X_batch);
-  free_matrix(y_true_batch);
-}
-
 int main(void) {
   printf("Hello, World!\n");
 
@@ -159,25 +120,37 @@ int main(void) {
   // Initialize network
   Network *net = new_network();
 
-  // init_matrix_from_file(net->W1, "../datasets/W1.csv", 784, 50);
-  // init_matrix_from_file(net->W2, "../datasets/W2.csv", 50, 100);
-  // init_matrix_from_file(net->W3, "../datasets/W3.csv", 100, 10);
-  //
-  // Matrix *b1_ = new_matrix(50, 1);
-  // init_matrix_from_file(b1_, "../datasets/b1.csv", 50, 1);
-  // transpose_matrix(net->b1, b1_);
-  //
-  // Matrix *b2_ = new_matrix(100, 1);
-  // init_matrix_from_file(b2_, "../datasets/b2.csv", 100, 1);
-  // transpose_matrix(net->b2, b2_);
-  //
-  // Matrix *b3_ = new_matrix(10, 1);
-  // init_matrix_from_file(b3_, "../datasets/b3.csv", 10, 1);
-  // transpose_matrix(net->b3, b3_);
-  //
-  // validate(net, X_test, y_test);
+  SGD_Optimizer *optim = new_sgd_optimizer(net, 0.001);
+  Loss *loss_fn = new_cross_entropy_loss(10);
 
-  train(net, X_train, y_train, X_test, y_test, 10000, 32, 0.001);
+  // Train loop
+  for (int i = 1; i <= 10; i++) {
+    // Load mini-batch
+    Matrix *X_batch = new_matrix(BATCH_SIZE, X_train->cols);
+    Matrix *y_true_batch = new_matrix(BATCH_SIZE, 10);
+    load_mini_batch(X_train, y_train, X_batch, y_true_batch, BATCH_SIZE);
+
+    // Forward pass
+    optim->zero_grad(optim);
+    Matrix *y_pred = net->forward(net, X_batch);
+    double loss = loss_fn->forward(loss_fn, y_true_batch, y_pred);
+
+    // Backward pass
+    loss_fn->backward(loss_fn);
+    net->backward(net);
+    optim->step(optim);
+
+    // Free memory
+    free_matrix(X_batch);
+    free_matrix(y_true_batch);
+
+    // Print loss
+    printf("Epoch %d: Loss: %f\n", i, loss);
+  }
+
+  free_network(net);
+  free_optimizer(optim);
+  free_loss(loss_fn);
 
   return 0;
 }

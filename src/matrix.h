@@ -1,16 +1,22 @@
 #ifndef MATRIX_H
 #define MATRIX_H
 
-typedef struct Matrix {
+typedef struct Matrix Matrix;
+struct Matrix {
   double *elements;
+  double *gradients;
   int rows;
   int cols;
-} Matrix;
 
-Matrix *new_matrix(int rows, int cols);
-Matrix *new_matrix_from_file(const char *filename, int rows, int cols);
+  Matrix *inputs;
+  int num_inputs;
+
+  void (*backward)(struct Matrix *self);
+};
 
 void free_matrix(Matrix *m);
+Matrix *new_matrix(int rows, int cols);
+Matrix *new_matrix_from_file(const char *filename, int rows, int cols);
 
 void init_matrix_uniform_random(Matrix *m, double low, double high);
 void init_matrix_normal_random(Matrix *m, double mean, double std);
@@ -18,7 +24,7 @@ void init_matrix_from_array(Matrix *m, double *data, const int rows,
                             const int cols);
 void init_matrix_from_file(Matrix *m, const char *filename, int rows, int cols);
 
-void matrix_add_matrixt(Matrix *result, const Matrix *a, const Matrix *b);
+void matrix_add_matrix(Matrix *result, const Matrix *a, const Matrix *b);
 void matrix_mul_matrix(Matrix *result, const Matrix *a, const Matrix *b);
 void matrix_sub_matrix(Matrix *result, const Matrix *a, const Matrix *b);
 void matrix_add_vector(Matrix *result, const Matrix *m, const Matrix *v);

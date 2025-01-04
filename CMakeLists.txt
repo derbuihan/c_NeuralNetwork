@@ -7,9 +7,15 @@ add_executable(NeuralNetwork
         src/main.c
         src/matrix.c
         src/matrix.h
+        src/layer.c
+        src/layer.h
         src/mnist.c
         src/mnist.h
         src/simple_network.c
         src/simple_network.h
         src/optimizer.c
-        src/optimizer.h)
+        src/optimizer.h
+        src/loss.c
+        src/loss.h)
+
+add_executable(Tensor src/tensor.c src/tensor.h)
