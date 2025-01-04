@@ -6,7 +6,7 @@
 
 void free_loss(Loss *loss_fn) {
   for (int i = 0; i < loss_fn->num_params; i++) {
-    free_matrix(loss_fn->params[i]);
+    // free_matrix(loss_fn->params[i]);
   }
   free(loss_fn->params);
   free(loss_fn->options);
@@ -15,50 +15,43 @@ void free_loss(Loss *loss_fn) {
 
 /* Cross Entropy Loss */
 
-double forward_cross_entropy_loss(Loss *loss_fn, Matrix *y_true,
-                                  Matrix *y_pred) {
+static double forward_cross_entropy_loss(Loss *loss_fn, Matrix *y_true,
+                                         Matrix *y_pred) {
   /* y_true is a one-hot encoded matrix
    * y_pred is a logits matrix (before softmax)
    */
-  if (y_true->rows != y_pred->rows || y_true->cols != y_pred->cols) {
-    fprintf(stderr, "Error: size mismatch\n");
-    fprintf(stderr, "cross_entropy_loss: %d x %d, %d x %d\n", y_true->rows,
-            y_true->cols, y_pred->rows, y_pred->cols);
-    exit(1);
-  }
 
-  Matrix *y_pred_softmax = loss_fn->params[0];
-  softmax_matrix(y_pred_softmax, y_pred);
+  loss_fn->params[0] = y_pred;
+  softmax_matrix(loss_fn->params[1], y_pred);
+  loss_fn->params[2] = y_true;
 
-  double loss = 0;
-  double epsilon = 1e-15;
+  return cross_entropy_loss(y_true, y_pred);
+}
+
+static void backward_cross_entropy_loss(Loss *loss_fn) {
+  /* dL/dy_pred = y_pred_softmax - y_true
+   */
+  Matrix *y_pred = loss_fn->params[0];
+  Matrix *y_pred_softmax = loss_fn->params[1];
+  Matrix *y_true = loss_fn->params[2];
+
   for (int i = 0; i < y_true->rows; i++) {
     for (int j = 0; j < y_true->cols; j++) {
       int idx = i * y_true->cols + j;
-      if (y_true->elements[idx] > 0) {
-        double prob = y_pred_softmax->elements[idx] + epsilon;
-        loss += y_true->elements[idx] * log(prob);
-      }
+      y_pred->gradients[idx] =
+          y_pred_softmax->elements[idx] - y_true->elements[idx];
     }
   }
-
-  return -loss / y_true->rows;
 }
 
-static void backward_none(Loss *loss_fn) {
-  // Do nothing
-  Matrix *y_pred_softmax = loss_fn->params[0];
-
-  loss_fn->params[0]->backward(loss_fn->params[0]);
-}
-
-Loss *new_cross_entropy_loss(int class_num) {
+Loss *new_cross_entropy_loss(int batch_size, int class_num) {
   Loss *loss = malloc(sizeof(Loss));
 
   // params
-  loss->params = malloc(1 * sizeof(Matrix *));
-  loss->params[0] = new_matrix(BATCH_SIZE, class_num);
-  loss->num_params = 1;
+  loss->params =
+      malloc(3 * sizeof(Matrix *)); // 0: y_pred, 1: y_pred_softmax 2: y_true
+  loss->params[1] = new_matrix(batch_size, class_num); // y_pred_softmax
+  loss->num_params = 3;
 
   // options
   loss->options = malloc(1 * sizeof(int));
@@ -66,7 +59,7 @@ Loss *new_cross_entropy_loss(int class_num) {
 
   // functions
   loss->forward = forward_cross_entropy_loss;
-  loss->backward = backward_none;
+  loss->backward = backward_cross_entropy_loss;
   return loss;
 }
 

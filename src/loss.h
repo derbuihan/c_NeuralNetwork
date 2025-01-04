@@ -3,8 +3,6 @@
 
 #include "matrix.h"
 
-#define BATCH_SIZE 64
-
 typedef struct Loss Loss;
 
 struct Loss {
@@ -19,6 +17,6 @@ struct Loss {
 };
 
 void free_loss(Loss *loss_fn);
-Loss *new_cross_entropy_loss(int class_num);
+Loss *new_cross_entropy_loss(int batch_size, int class_num);
 
 #endif // LOSS_H

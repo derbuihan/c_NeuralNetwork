@@ -74,12 +74,29 @@ void load_mini_batch(Matrix *X, Matrix *y_true, Matrix *X_batch,
 }
 
 void validate(Network *net, Matrix *X_test, Matrix *y_test) {
-  Matrix *y_pred = net->forward(net, X_test);
-  double accuracy = calculate_accuracy(y_test, y_pred);
-  double loss = cross_entropy_loss(y_test, y_pred);
+  int BATCH_SIZE = 64;
+  Matrix *X_batch = new_matrix(BATCH_SIZE, X_test->cols);
+  Matrix *y_true_batch = new_matrix(BATCH_SIZE, 10);
+
+  int num = X_test->rows / BATCH_SIZE;
+  double total_loss = 0;
+  double total_accuracy = 0;
+  for (int i = 0; i < num; i++) {
+    load_mini_batch(X_test, y_test, X_batch, y_true_batch, BATCH_SIZE);
+
+    net->zero_grad(net);
+    Matrix *y_pred = net->forward(net, X_batch);
+    total_loss += cross_entropy_loss(y_true_batch, y_pred);
+    total_accuracy += calculate_accuracy(y_true_batch, y_pred);
+  }
+
+  double loss = total_loss / num;
+  double accuracy = total_accuracy / num;
   printf("Validation: Loss: %f, Accuracy: %.2f%%\n", loss,
          (double)accuracy * 100);
-  free_matrix(y_pred);
+
+  free_matrix(X_batch);
+  free_matrix(y_true_batch);
 }
 
 int main(void) {
@@ -118,13 +135,14 @@ int main(void) {
   free(test_labels);
 
   // Initialize network
-  Network *net = new_network();
+  int BATCH_SIZE = 64;
+  Network *net = new_network(BATCH_SIZE);
 
   SGD_Optimizer *optim = new_sgd_optimizer(net, 0.001);
-  Loss *loss_fn = new_cross_entropy_loss(10);
+  Loss *loss_fn = new_cross_entropy_loss(BATCH_SIZE, 10);
 
   // Train loop
-  for (int i = 1; i <= 10; i++) {
+  for (int i = 1; i <= 10000; i++) {
     // Load mini-batch
     Matrix *X_batch = new_matrix(BATCH_SIZE, X_train->cols);
     Matrix *y_true_batch = new_matrix(BATCH_SIZE, 10);
@@ -145,7 +163,10 @@ int main(void) {
     free_matrix(y_true_batch);
 
     // Print loss
-    printf("Epoch %d: Loss: %f\n", i, loss);
+    if (i % 100 == 0) {
+      printf("Epoch %d: TrainLoss: %f ", i, loss);
+      validate(net, X_test, y_test);
+    }
   }
 
   free_network(net);

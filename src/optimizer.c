@@ -6,16 +6,7 @@ void free_optimizer(SGD_Optimizer *optim) { free(optim); }
 
 static void zero_grad(SGD_Optimizer *optim) {
   Network *net = optim->net;
-
-  for (int i = 0; i < net->num_layers; i++) {
-    Layer *layer = net->layers[i];
-    for (int j = 0; j < layer->num_params; j++) {
-      Matrix *m = layer->params[j];
-      for (int k = 0; k < m->rows * m->cols; k++) {
-        m->gradients[k] = 0;
-      }
-    }
-  }
+  net->zero_grad(net);
 }
 
 static void step_sgd(SGD_Optimizer *optim) {

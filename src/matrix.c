@@ -6,23 +6,38 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void backward_none(Matrix *self) {
+static void backward_none(Matrix *self) {
+  if (self->num_inputs != 0) {
+    printf("backward_none\n");
+  }
   // Do nothing
+}
+
+static void zero_grad_matrix(Matrix *self) {
+  for (int i = 0; i < self->rows * self->cols; i++) {
+    self->gradients[i] = 0;
+  }
 }
 
 Matrix *new_matrix(int rows, int cols) {
   Matrix *m = malloc(sizeof(Matrix));
+  if (m == NULL) {
+    fprintf(stderr, "Error: malloc failed\n");
+    exit(1);
+  }
 
   m->elements = malloc(rows * cols * sizeof(double));
   m->gradients = malloc(rows * cols * sizeof(double));
   m->rows = rows;
   m->cols = cols;
+  m->inputs = NULL;
+  m->num_inputs = 0;
   m->backward = backward_none;
-
+  m->zero_grad = zero_grad_matrix;
   return m;
 }
 
-Matrix *new_matrix_from_file(const char *filename, int rows, int cols) {
+Matrix *new_matrix_from_file(char *filename, int rows, int cols) {
   double *data = malloc(rows * cols * sizeof(double));
   load_csv(filename, data, rows, cols);
   Matrix *m = new_matrix(rows, cols);
@@ -33,6 +48,11 @@ Matrix *new_matrix_from_file(const char *filename, int rows, int cols) {
 
 void free_matrix(Matrix *m) {
   free(m->elements);
+  free(m->gradients);
+  for (int i = 0; i < m->num_inputs; i++) {
+    free_matrix(m->inputs[i]);
+  }
+  free(m->inputs);
   free(m);
 }
 
@@ -63,8 +83,7 @@ void init_matrix_normal_random(Matrix *m, double mean, double std) {
   }
 }
 
-void init_matrix_from_array(Matrix *m, double *data, const int rows,
-                            const int cols) {
+void init_matrix_from_array(Matrix *m, double *data, int rows, int cols) {
   if (m->rows != rows || m->cols != cols) {
     fprintf(stderr, "Error: size mismatch\n");
     fprintf(stderr, "init_matrix_from_array: %d x %d, %d x %d\n", m->rows,
@@ -79,15 +98,26 @@ void init_matrix_from_array(Matrix *m, double *data, const int rows,
   }
 }
 
-void init_matrix_from_file(Matrix *m, const char *filename, int rows,
-                           int cols) {
+void init_matrix_from_file(Matrix *m, char *filename, int rows, int cols) {
   double *data = malloc(rows * cols * sizeof(double));
   load_csv(filename, data, rows, cols);
   init_matrix_from_array(m, data, rows, cols);
   free(data);
 }
 
-void matrix_add_matrix(Matrix *result, const Matrix *a, const Matrix *b) {
+static void backward_matrix_add_matrix(Matrix *self) {
+  Matrix *a = self->inputs[0];
+  Matrix *b = self->inputs[1];
+
+  for (int i = 0; i < self->rows; i++) {
+    for (int j = 0; j < self->cols; j++) {
+      a->gradients[i * a->cols + j] += self->gradients[i * self->cols + j];
+      b->gradients[i * b->cols + j] += self->gradients[i * self->cols + j];
+    }
+  }
+}
+
+void matrix_add_matrix(Matrix *result, Matrix *a, Matrix *b) {
   if (result->rows != a->rows || result->rows != b->rows ||
       result->cols != a->cols || result->cols != b->cols) {
     fprintf(stderr, "Error: size mismatch\n");
@@ -102,9 +132,31 @@ void matrix_add_matrix(Matrix *result, const Matrix *a, const Matrix *b) {
           a->elements[i * a->cols + j] + b->elements[i * b->cols + j];
     }
   }
+
+  result->inputs = malloc(2 * sizeof(Matrix *));
+  result->inputs[0] = a;
+  result->inputs[1] = b;
+  result->num_inputs = 2;
+  result->backward = backward_matrix_add_matrix;
 }
 
-void matrix_mul_matrix(Matrix *result, const Matrix *a, const Matrix *b) {
+static void backward_matrix_mul_matrix(Matrix *self) {
+  Matrix *a = self->inputs[0];
+  Matrix *b = self->inputs[1];
+
+  for (int i = 0; i < self->rows; i++) {
+    for (int j = 0; j < self->cols; j++) {
+      for (int k = 0; k < a->cols; k++) {
+        a->gradients[i * a->cols + k] +=
+            self->gradients[i * self->cols + j] * b->elements[k * b->cols + j];
+        b->gradients[k * b->cols + j] +=
+            self->gradients[i * self->cols + j] * a->elements[i * a->cols + k];
+      }
+    }
+  }
+}
+
+void matrix_mul_matrix(Matrix *result, Matrix *a, Matrix *b) {
   if (result->rows != a->rows || result->cols != b->cols ||
       a->cols != b->rows) {
     fprintf(stderr, "Error: size mismatch\n");
@@ -122,26 +174,32 @@ void matrix_mul_matrix(Matrix *result, const Matrix *a, const Matrix *b) {
       result->elements[i * result->cols + j] = sum;
     }
   }
+
+  result->inputs = malloc(2 * sizeof(Matrix *));
+  result->inputs[0] = a;
+  result->inputs[1] = b;
+  result->num_inputs = 2;
+  result->backward = backward_matrix_mul_matrix;
 }
 
-void matrix_sub_matrix(Matrix *result, const Matrix *a, const Matrix *b) {
-  if (result->rows != a->rows || result->rows != b->rows ||
-      result->cols != a->cols || result->cols != b->cols) {
-    fprintf(stderr, "Error: size mismatch\n");
-    fprintf(stderr, "matrix_sub_matrix: %d x %d, %d x %d, %d x %d\n",
-            result->rows, result->cols, a->rows, a->cols, b->rows, b->cols);
-    exit(1);
-  }
+static void backward_matrix_add_vector(Matrix *self) {
+  Matrix *m = self->inputs[0];
+  Matrix *v = self->inputs[1];
 
-  for (int i = 0; i < result->rows; i++) {
-    for (int j = 0; j < result->cols; j++) {
-      result->elements[i * result->cols + j] =
-          a->elements[i * a->cols + j] - b->elements[i * b->cols + j];
+  for (int i = 0; i < self->rows; i++) {
+    for (int j = 0; j < self->cols; j++) {
+      m->gradients[i * m->cols + j] += self->gradients[i * self->cols + j];
+      v->gradients[j] += self->gradients[i * self->cols + j];
     }
   }
 }
 
-void matrix_add_vector(Matrix *result, const Matrix *m, const Matrix *v) {
+void matrix_add_vector(Matrix *result, Matrix *m, Matrix *v) {
+  /* result = m + v
+   * m: (batch_size, input_size)
+   * v: (1, input_size)
+   */
+
   if (result->rows != m->rows || result->cols != m->cols) {
     fprintf(stderr, "Error: size mismatch\n");
     fprintf(stderr, "matrix_add_vector: %d x %d, %d x %d, %d x %d\n",
@@ -149,54 +207,40 @@ void matrix_add_vector(Matrix *result, const Matrix *m, const Matrix *v) {
     exit(1);
   }
 
-  if (v->cols == 1) {
-    if (v->rows != m->rows) {
-      fprintf(stderr, "Error: size mismatch\n");
-      fprintf(stderr, "matrix_add_vector: %d x %d, %d x %d, %d x %d\n",
-              result->rows, result->cols, m->rows, m->cols, v->rows, v->cols);
-      exit(1);
-    }
-
-    for (int i = 0; i < result->rows; i++) {
-      for (int j = 0; j < result->cols; j++) {
-        result->elements[i * result->cols + j] =
-            m->elements[i * m->cols + j] + v->elements[i];
-      }
-    }
-  } else if (v->rows == 1) {
-    if (v->cols != m->cols) {
-      fprintf(stderr, "Error: size mismatch\n");
-      fprintf(stderr, "matrix_add_vector: %d x %d, %d x %d, %d x %d\n",
-              result->rows, result->cols, m->rows, m->cols, v->rows, v->cols);
-      exit(1);
-    }
-
-    for (int i = 0; i < result->rows; i++) {
-      for (int j = 0; j < result->cols; j++) {
-        result->elements[i * result->cols + j] =
-            m->elements[i * m->cols + j] + v->elements[j];
-      }
-    }
-  }
-}
-
-void matrix_mul_scalar(Matrix *result, const Matrix *m, const double scalar) {
-  if (result->rows != m->rows || result->cols != m->cols) {
-    fprintf(stderr, "Error: size mismatch\n");
-    fprintf(stderr, "matrix_mul_scalar: %d x %d, %d x %d\n", result->rows,
-            result->cols, m->rows, m->cols);
+  if (v->rows != 1 || v->cols != m->cols) {
+    fprintf(stderr, "Error: unsupported size\n");
+    fprintf(stderr, "matrix_add_vector: %d x %d, %d x %d, %d x %d\n",
+            result->rows, result->cols, m->rows, m->cols, v->rows, v->cols);
     exit(1);
   }
 
   for (int i = 0; i < result->rows; i++) {
     for (int j = 0; j < result->cols; j++) {
       result->elements[i * result->cols + j] =
-          m->elements[i * m->cols + j] * scalar;
+          m->elements[i * m->cols + j] + v->elements[j];
+    }
+  }
+
+  result->inputs = malloc(2 * sizeof(Matrix *));
+  result->inputs[0] = m;
+  result->inputs[1] = v;
+  result->num_inputs = 2;
+  result->backward = backward_matrix_add_vector;
+}
+
+static void backward_sigmoid_matrix(Matrix *self) {
+  Matrix *m = self->inputs[0];
+
+  for (int i = 0; i < self->rows; i++) {
+    for (int j = 0; j < self->cols; j++) {
+      int idx = i * self->cols + j;
+      m->gradients[idx] += self->gradients[idx] * self->elements[idx] *
+                           (1 - self->elements[idx]);
     }
   }
 }
 
-void sigmoid_matrix(Matrix *result, const Matrix *m) {
+void sigmoid_matrix(Matrix *result, Matrix *m) {
   if (result->rows != m->rows || result->cols != m->cols) {
     fprintf(stderr, "Error: size mismatch\n");
     fprintf(stderr, "sigmoid_matrix: %d x %d, %d x %d\n", result->rows,
@@ -210,9 +254,14 @@ void sigmoid_matrix(Matrix *result, const Matrix *m) {
           1 / (1 + exp(-m->elements[i * m->cols + j]));
     }
   }
+
+  result->inputs = malloc(sizeof(Matrix *));
+  result->inputs[0] = m;
+  result->num_inputs = 1;
+  result->backward = backward_sigmoid_matrix;
 }
 
-void softmax_matrix(Matrix *result, const Matrix *m) {
+void softmax_matrix(Matrix *result, Matrix *m) {
   if (result->rows != m->rows || result->cols != m->cols) {
     fprintf(stderr, "Error: size mismatch\n");
     fprintf(stderr, "softmax_matrix: %d x %d, %d x %d\n", result->rows,
@@ -241,22 +290,7 @@ void softmax_matrix(Matrix *result, const Matrix *m) {
   }
 }
 
-void transpose_matrix(Matrix *result, const Matrix *m) {
-  if (result->rows != m->cols || result->cols != m->rows) {
-    fprintf(stderr, "Error: size mismatch\n");
-    fprintf(stderr, "transpose_matrix: %d x %d, %d x %d\n", result->rows,
-            result->cols, m->rows, m->cols);
-    exit(1);
-  }
-
-  for (int i = 0; i < result->rows; i++) {
-    for (int j = 0; j < result->cols; j++) {
-      result->elements[i * result->cols + j] = m->elements[j * m->cols + i];
-    }
-  }
-}
-
-double cross_entropy_loss(const Matrix *y_true, const Matrix *y_pred) {
+double cross_entropy_loss(Matrix *y_true, Matrix *y_pred) {
   /* y_true is a one-hot encoded matrix
    * y_pred is a logits matrix (before softmax)
    */
@@ -284,101 +318,6 @@ double cross_entropy_loss(const Matrix *y_true, const Matrix *y_pred) {
 
   free_matrix(y_pred_softmax);
   return -loss / y_true->rows;
-}
-
-void matrix_sum_rows(Matrix *result, Matrix *m) {
-  if (result->rows != 1 || result->cols != m->cols) {
-    fprintf(stderr, "Error: size mismatch\n");
-    fprintf(stderr, "matrix_sum_rows: %d x %d, %d x %d\n", result->rows,
-            result->cols, m->rows, m->cols);
-    exit(1);
-  }
-
-  for (int j = 0; j < m->cols; j++) {
-    result->elements[j] = 0.0;
-    for (int i = 0; i < m->rows; i++) {
-      result->elements[j] += m->elements[i * m->cols + j];
-    }
-  }
-}
-
-void matrix_transpose_mul_matrix(Matrix *result, const Matrix *a,
-                                 const Matrix *b) {
-  /* result = a ^ T * b
-   */
-  if (result->rows != a->cols || result->cols != b->cols ||
-      a->rows != b->rows) {
-    fprintf(stderr, "Error: size mismatch\n");
-    fprintf(stderr, "matrix_transpose_mul_matrix: %d x %d, %d x %d, %d x %d\n",
-            result->rows, result->cols, a->rows, a->cols, b->rows, b->cols);
-    exit(1);
-  }
-
-  for (int i = 0; i < result->rows; i++) {
-    for (int j = 0; j < result->cols; j++) {
-      double sum = 0;
-      for (int k = 0; k < a->rows; k++) {
-        sum += a->elements[k * a->cols + i] * b->elements[k * b->cols + j];
-      }
-      result->elements[i * result->cols + j] = sum;
-    }
-  }
-}
-
-void matrix_mul_matrix_transpose(Matrix *result, const Matrix *a,
-                                 const Matrix *b) {
-  /* result = a * b ^ T
-   */
-  if (result->rows != a->rows || result->cols != b->rows ||
-      a->cols != b->cols) {
-    fprintf(stderr, "Error: size mismatch\n");
-    fprintf(stderr, "matrix_mul_matrix_transpose: %d x %d, %d x %d, %d x %d\n",
-            result->rows, result->cols, a->rows, a->cols, b->rows, b->cols);
-    exit(1);
-  }
-
-  for (int i = 0; i < result->rows; i++) {
-    for (int j = 0; j < result->cols; j++) {
-      double sum = 0;
-      for (int k = 0; k < a->cols; k++) {
-        sum += a->elements[i * a->cols + k] * b->elements[j * b->cols + k];
-      }
-      result->elements[i * result->cols + j] = sum;
-    }
-  }
-}
-
-void sigmoid_derivative_matrix(Matrix *result, const Matrix *m) {
-  if (result->rows != m->rows || result->cols != m->cols) {
-    fprintf(stderr, "Error: size mismatch\n");
-    fprintf(stderr, "sigmoid_derivative_matrix: %d x %d, %d x %d\n",
-            result->rows, result->cols, m->rows, m->cols);
-    exit(1);
-  }
-
-  for (int i = 0; i < result->rows; i++) {
-    for (int j = 0; j < result->cols; j++) {
-      double sigmoid = 1 / (1 + exp(-m->elements[i * m->cols + j]));
-      result->elements[i * result->cols + j] = sigmoid * (1 - sigmoid);
-    }
-  }
-}
-
-void matrix_elementwise_mul(Matrix *result, const Matrix *a, const Matrix *b) {
-  if (result->rows != a->rows || result->rows != b->rows ||
-      result->cols != a->cols || result->cols != b->cols) {
-    fprintf(stderr, "Error: size mismatch\n");
-    fprintf(stderr, "matrix_elementwise_mul: %d x %d, %d x %d, %d x %d\n",
-            result->rows, result->cols, a->rows, a->cols, b->rows, b->cols);
-    exit(1);
-  }
-
-  for (int i = 0; i < result->rows; i++) {
-    for (int j = 0; j < result->cols; j++) {
-      result->elements[i * result->cols + j] =
-          a->elements[i * a->cols + j] * b->elements[i * b->cols + j];
-    }
-  }
 }
 
 void print_matrix(Matrix *m) {

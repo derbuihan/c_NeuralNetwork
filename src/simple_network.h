@@ -10,9 +10,10 @@ struct Network {
 
   Matrix *(*forward)(Network *net, Matrix *X);
   void (*backward)(Network *net);
+  void (*zero_grad)(Network *net);
 };
 
 void free_network(Network *net);
-Network *new_network();
+Network *new_network(int BATCH_SIZE);
 
 #endif // SIMPLE_NETWORK_H
