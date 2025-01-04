@@ -17,5 +17,3 @@ add_executable(NeuralNetwork
         src/optimizer.h
         src/loss.c
         src/loss.h)
-
-add_executable(Tensor src/tensor.c src/tensor.h)
