@@ -3,14 +3,16 @@
 
 #include "matrix.h"
 
-typedef struct Loss Loss;
+typedef struct LossOptions {
+  Matrix *y_true;
+  Matrix *y_pred;
+} LossOptions;
 
+typedef struct Loss Loss;
 struct Loss {
   Matrix **params;
   int num_params;
-
-  int *options;
-  int num_options;
+  LossOptions *options;
 
   double (*forward)(Loss *self, Matrix *y_true, Matrix *y_pred);
   void (*backward)(Loss *self);

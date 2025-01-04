@@ -8,7 +8,6 @@ void free_layer(Layer *layer) {
     free_matrix(layer->params[i]);
   }
   free(layer->params);
-  free(layer->options);
   free(layer);
 }
 
@@ -70,9 +69,6 @@ Layer *new_linear_layer(int batch_size, int input_size, int output_size) {
   init_matrix_uniform_random(layer->params[2], -1.0 / sqrt(input_size),
                              1.0 / sqrt(input_size));
 
-  // options
-  layer->options = NULL;
-
   // functions
   layer->forward = forward_linear_layer;
   layer->backward = backward_layer;
@@ -102,9 +98,6 @@ Layer *new_sigmoid_layer(int batch_size, int input_size) {
   layer->params = malloc(1 * sizeof(Matrix *));
   layer->params[0] = new_matrix(batch_size, input_size); // Z
   layer->num_params = 1;
-
-  // options
-  layer->options = NULL;
 
   // functions
   layer->forward = forward_sigmoid_layer;

@@ -1,12 +1,11 @@
 #include "loss.h"
 
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 void free_loss(Loss *loss_fn) {
   for (int i = 0; i < loss_fn->num_params; i++) {
-    // free_matrix(loss_fn->params[i]);
+    free_matrix(loss_fn->params[i]);
   }
   free(loss_fn->params);
   free(loss_fn->options);
@@ -21,19 +20,21 @@ static double forward_cross_entropy_loss(Loss *loss_fn, Matrix *y_true,
    * y_pred is a logits matrix (before softmax)
    */
 
-  loss_fn->params[0] = y_pred;
-  softmax_matrix(loss_fn->params[1], y_pred);
-  loss_fn->params[2] = y_true;
+  loss_fn->options->y_true = y_true;
+  loss_fn->options->y_pred = y_pred;
 
-  return cross_entropy_loss(y_true, y_pred);
+  Matrix *y_pred_softmax = loss_fn->params[0];
+  softmax_matrix(y_pred_softmax, y_pred);
+
+  return cross_entropy_loss(y_true, y_pred_softmax);
 }
 
 static void backward_cross_entropy_loss(Loss *loss_fn) {
   /* dL/dy_pred = y_pred_softmax - y_true
    */
-  Matrix *y_pred = loss_fn->params[0];
-  Matrix *y_pred_softmax = loss_fn->params[1];
-  Matrix *y_true = loss_fn->params[2];
+  Matrix *y_pred = loss_fn->options->y_pred;
+  Matrix *y_pred_softmax = loss_fn->params[0];
+  Matrix *y_true = loss_fn->options->y_true;
 
   for (int i = 0; i < y_true->rows; i++) {
     for (int j = 0; j < y_true->cols; j++) {
@@ -48,14 +49,12 @@ Loss *new_cross_entropy_loss(int batch_size, int class_num) {
   Loss *loss = malloc(sizeof(Loss));
 
   // params
-  loss->params =
-      malloc(3 * sizeof(Matrix *)); // 0: y_pred, 1: y_pred_softmax 2: y_true
-  loss->params[1] = new_matrix(batch_size, class_num); // y_pred_softmax
-  loss->num_params = 3;
+  loss->params = malloc(sizeof(Matrix *));
+  loss->params[0] = new_matrix(batch_size, class_num); // y_pred_softmax
+  loss->num_params = 1;
 
   // options
-  loss->options = malloc(1 * sizeof(int));
-  loss->options[0] = class_num;
+  loss->options = malloc(sizeof(LossOptions));
 
   // functions
   loss->forward = forward_cross_entropy_loss;

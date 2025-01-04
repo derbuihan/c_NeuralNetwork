@@ -169,6 +169,11 @@ int main(void) {
     }
   }
 
+  free_matrix(X_train);
+  free_matrix(y_train);
+  free_matrix(X_test);
+  free_matrix(y_test);
+
   free_network(net);
   free_optimizer(optim);
   free_loss(loss_fn);

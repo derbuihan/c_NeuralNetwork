@@ -6,6 +6,7 @@ void free_network(Network *net) {
   for (int i = 0; i < net->num_layers; i++) {
     free_layer(net->layers[i]);
   }
+  free(net->layers);
   free(net);
 }
 
@@ -14,14 +15,6 @@ static Matrix *forward(Network *net, Matrix *X) {
     X = net->layers[i]->forward(net->layers[i], X);
   }
   return X;
-  /*
-    Matrix *a1 = net->layers[0]->forward(net->layers[0], X);
-    Matrix *z1 = net->layers[1]->forward(net->layers[1], a1);
-    Matrix *a2 = net->layers[2]->forward(net->layers[2], z1);
-    Matrix *z2 = net->layers[3]->forward(net->layers[3], a2);
-    Matrix *a3 = net->layers[4]->forward(net->layers[4], z2);
-    return a3;
-  */
 }
 
 static void backward(Network *net) {

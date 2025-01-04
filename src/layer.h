@@ -8,9 +8,6 @@ struct Layer {
   Matrix **params;
   int num_params;
 
-  int *options;
-  int num_options;
-
   Matrix *(*forward)(Layer *layer, Matrix *X);
   void (*backward)(Layer *layer);
   void (*zero_grad)(Layer *layer);

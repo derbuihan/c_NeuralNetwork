@@ -49,9 +49,6 @@ Matrix *new_matrix_from_file(char *filename, int rows, int cols) {
 void free_matrix(Matrix *m) {
   free(m->elements);
   free(m->gradients);
-  for (int i = 0; i < m->num_inputs; i++) {
-    free_matrix(m->inputs[i]);
-  }
   free(m->inputs);
   free(m);
 }
@@ -290,19 +287,17 @@ void softmax_matrix(Matrix *result, Matrix *m) {
   }
 }
 
-double cross_entropy_loss(Matrix *y_true, Matrix *y_pred) {
+double cross_entropy_loss(Matrix *y_true, Matrix *y_pred_softmax) {
   /* y_true is a one-hot encoded matrix
-   * y_pred is a logits matrix (before softmax)
+   * y_pred_softmax is a predicted probability matrix (after softmax)
    */
-  if (y_true->rows != y_pred->rows || y_true->cols != y_pred->cols) {
+  if (y_true->rows != y_pred_softmax->rows ||
+      y_true->cols != y_pred_softmax->cols) {
     fprintf(stderr, "Error: size mismatch\n");
     fprintf(stderr, "cross_entropy_loss: %d x %d, %d x %d\n", y_true->rows,
-            y_true->cols, y_pred->rows, y_pred->cols);
+            y_true->cols, y_pred_softmax->rows, y_pred_softmax->cols);
     exit(1);
   }
-
-  Matrix *y_pred_softmax = new_matrix(y_pred->rows, y_pred->cols);
-  softmax_matrix(y_pred_softmax, y_pred);
 
   double loss = 0;
   double epsilon = 1e-15;
@@ -316,7 +311,6 @@ double cross_entropy_loss(Matrix *y_true, Matrix *y_pred) {
     }
   }
 
-  free_matrix(y_pred_softmax);
   return -loss / y_true->rows;
 }
 

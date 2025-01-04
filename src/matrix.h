@@ -29,7 +29,7 @@ void matrix_mul_matrix(Matrix *result, Matrix *a, Matrix *b);
 void matrix_add_vector(Matrix *result, Matrix *m, Matrix *v);
 void sigmoid_matrix(Matrix *result, Matrix *m);
 void softmax_matrix(Matrix *result, Matrix *m);
-double cross_entropy_loss(Matrix *y_true, Matrix *y_pred);
+double cross_entropy_loss(Matrix *y_true, Matrix *y_pred_softmax);
 
 void print_matrix(Matrix *m);
 
