@@ -101,6 +101,38 @@ void validate(Network *net, Matrix *X_test, Matrix *y_test) {
   free_matrix(y_true_batch);
 }
 
+void train(Network *net, Matrix *X_train, Matrix *y_train, Matrix *X_test,
+           Matrix *y_test, int BATCH_SIZE, int EPOCHS, Adam_Optimizer *optim,
+           Loss *loss_fn) {
+
+  for (int i = 0; i <= EPOCHS; i++) {
+    // Load mini-batch
+    Matrix *X_batch = new_matrix(BATCH_SIZE, X_train->cols);
+    Matrix *y_true_batch = new_matrix(BATCH_SIZE, 10);
+    load_mini_batch(X_train, y_train, X_batch, y_true_batch, BATCH_SIZE);
+
+    // Forward pass
+    optim->zero_grad(optim);
+    Matrix *y_pred = net->forward(net, X_batch);
+    double loss = loss_fn->forward(loss_fn, y_true_batch, y_pred);
+
+    // Backward pass
+    loss_fn->backward(loss_fn);
+    net->backward(net);
+    optim->step(optim);
+
+    // Free memory
+    free_matrix(X_batch);
+    free_matrix(y_true_batch);
+
+    // Print loss
+    if (i % (EPOCHS / 10) == 0) {
+      printf("Epoch %d: TrainLoss: %f ", i, loss);
+      validate(net, X_test, y_test);
+    }
+  }
+}
+
 int main(void) {
   printf("Hello, World!\n");
 
@@ -140,39 +172,14 @@ int main(void) {
   int BATCH_SIZE = 64;
   Network *net = new_network(BATCH_SIZE);
 
-  // SGD_Optimizer *optim = new_sgd_optimizer(net, 0.001);
   Adam_Optimizer *optim = new_adam_optimizer(net, 0.0001);
-
   Loss *loss_fn = new_cross_entropy_loss(BATCH_SIZE, 10);
 
   // Train loop
-  for (int i = 0; i <= 100; i++) {
-    // Load mini-batch
-    Matrix *X_batch = new_matrix(BATCH_SIZE, X_train->cols);
-    Matrix *y_true_batch = new_matrix(BATCH_SIZE, 10);
-    load_mini_batch(X_train, y_train, X_batch, y_true_batch, BATCH_SIZE);
+  train(net, X_train, y_train, X_test, y_test, BATCH_SIZE, 1000, optim,
+        loss_fn);
 
-    // Forward pass
-    optim->zero_grad(optim);
-    Matrix *y_pred = net->forward(net, X_batch);
-    double loss = loss_fn->forward(loss_fn, y_true_batch, y_pred);
-
-    // Backward pass
-    loss_fn->backward(loss_fn);
-    net->backward(net);
-    optim->step(optim);
-
-    // Free memory
-    free_matrix(X_batch);
-    free_matrix(y_true_batch);
-
-    // Print loss
-    if (i % 10 == 0) {
-      printf("Epoch %d: TrainLoss: %f ", i, loss);
-      validate(net, X_test, y_test);
-    }
-  }
-
+  // Free memory
   free_matrix(X_train);
   free_matrix(y_train);
   free_matrix(X_test);
